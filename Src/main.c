@@ -28,14 +28,38 @@
 #include "stdio.h"
 #include "string.h"
 #include "dma.h"
+#include "hts221.h"
+#include "lps25hb.h"
+#include <math.h>
 
 #define CHAR_BUFF_SIZE	30
 
 uint8_t temp = 0;
-float mag[3], acc[3];
-char formated_text[30], value_x[10], value_y[10], value_z[10];
+float iniPressure, iniHight, newPressure, newHight, iniTemp,density, mesure[2];
+char formated_text[50];
+float sea_level_pressure = 1013.25;
 
 void SystemClock_Config(void);
+
+float iniValue(){
+
+	  iniPressure = lps25hb_get_pressure();
+	  iniTemp = hts221_get_temp();
+
+	  //Hypsometric formula
+
+	  mesure[0]=(((pow((sea_level_pressure/iniPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065);
+	  LL_mDelay(1000);
+	  iniPressure = lps25hb_get_pressure();
+	  mesure[1]=(((pow((sea_level_pressure/iniPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065);
+	  LL_mDelay(1000);
+	  iniPressure = lps25hb_get_pressure();
+	  mesure[2]=(((pow((sea_level_pressure/iniPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065);
+
+	  iniHight=(mesure[0]+mesure[1]+mesure[2])/3;
+
+	  return iniHight;
+}
 
 
 int main(void)
@@ -53,15 +77,38 @@ int main(void)
   MX_USART2_UART_Init();
 
   lsm6ds0_init();
+  hts221_init();
+  lps25hb_init();
+  lis3mdl_init();
+
+  iniTemp = hts221_get_temp();
+
+  iniHight=iniValue();
 
   while (1)
   {
-	  //os			   x      y        z
-	  lsm6ds0_get_acc(acc, (acc+1), (acc+2));
+	  LL_mDelay(200);
 	  memset(formated_text, '\0', sizeof(formated_text));
-	  sprintf(formated_text, "%0.4f,%0.4f,%0.4f\r", acc[0], acc[1], acc[2]);
+	  sprintf(formated_text, "teplota [°C]: %0.1f\r\n", hts221_get_temp());
 	  USART2_PutBuffer((uint8_t*)formated_text, strlen(formated_text));
-	  LL_mDelay(10);
+
+	  LL_mDelay(200);
+	  memset(formated_text, '\0', sizeof(formated_text));
+	  sprintf(formated_text, "tlak vzduchu [hPa]: %0.2f\r\n", newPressure=lps25hb_get_pressure());
+	  USART2_PutBuffer((uint8_t*)formated_text, strlen(formated_text));
+
+	  LL_mDelay(200);
+	  memset(formated_text, '\0', sizeof(formated_text));
+	  sprintf(formated_text, "rel. vlhkosť [%]: %d\r\n", hts221_get_humid());
+	  USART2_PutBuffer((uint8_t*)formated_text, strlen(formated_text));
+
+	  LL_mDelay(200);
+	  memset(formated_text, '\0', sizeof(formated_text));
+	  sprintf(formated_text, "relatívna výška [m]: %0.2f\r\n", (((pow((sea_level_pressure/newPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065)-iniHight);
+	  USART2_PutBuffer((uint8_t*)formated_text, strlen(formated_text));
+
+
+	  LL_mDelay(2000);
   }
 }
 
@@ -114,6 +161,7 @@ void Error_Handler(void)
 
   /* USER CODE END Error_Handler_Debug */
 }
+
 
 #ifdef  USE_FULL_ASSERT
 /**
