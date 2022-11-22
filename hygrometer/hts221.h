@@ -22,4 +22,4 @@ void hts221_write_byte(uint8_t reg_addr, uint8_t value);
 float hts221_get_temp();
 
 
-#endif /* HTS221_H_ */
+#endif

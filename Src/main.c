@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 #include "i2c.h"
 #include "gpio.h"
@@ -29,7 +30,7 @@
 #include "string.h"
 #include "dma.h"
 #include "hts221.h"
-#include "lps25hb.h"
+#include "lps22hb.h"
 #include <math.h>
 
 #define CHAR_BUFF_SIZE	30
@@ -43,17 +44,17 @@ void SystemClock_Config(void);
 
 float iniValue(){
 
-	  iniPressure = lps25hb_get_pressure();
+	  iniPressure = lps22hb_get_pressure();
 	  iniTemp = hts221_get_temp();
 
 	  //Hypsometric formula
 
 	  mesure[0]=(((pow((sea_level_pressure/iniPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065);
 	  LL_mDelay(1000);
-	  iniPressure = lps25hb_get_pressure();
+	  iniPressure = lps22hb_get_pressure();
 	  mesure[1]=(((pow((sea_level_pressure/iniPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065);
 	  LL_mDelay(1000);
-	  iniPressure = lps25hb_get_pressure();
+	  iniPressure = lps22hb_get_pressure();
 	  mesure[2]=(((pow((sea_level_pressure/iniPressure),(1/5.257)))-1)*iniTemp+273.15)/(0.0065);
 
 	  iniHight=(mesure[0]+mesure[1]+mesure[2])/3;
@@ -78,7 +79,7 @@ int main(void)
 
   lsm6ds0_init();
   hts221_init();
-  lps25hb_init();
+  lps22hb_init();
   lis3mdl_init();
 
   iniTemp = hts221_get_temp();
@@ -94,7 +95,7 @@ int main(void)
 
 	  LL_mDelay(200);
 	  memset(formated_text, '\0', sizeof(formated_text));
-	  sprintf(formated_text, "tlak vzduchu [hPa]: %0.2f\r\n", newPressure=lps25hb_get_pressure());
+	  sprintf(formated_text, "tlak vzduchu [hPa]: %0.2f\r\n", newPressure=lps22hb_get_pressure());
 	  USART2_PutBuffer((uint8_t*)formated_text, strlen(formated_text));
 
 	  LL_mDelay(200);

@@ -27,58 +27,49 @@ int hts221_get_humid()
 {
 	int16_t H0_T0_out, H1_T0_out, H_T_out, H0_rh, H1_rh;
 
-	uint8_t buffer[2];
+	uint8_t Data[2];
 	float humid = 0;
 
-	hts221_readArray(buffer, 0x30, 2);
-	H0_rh = buffer[0]>>1;
-	H1_rh = buffer[1]>>1;
+	hts221_readArray(Data, 0x30, 2);
+	H0_rh = Data[0];
+	H1_rh = Data[1];
 
-	hts221_readArray(buffer, 0x36, 2);
-	H0_T0_out = (((uint16_t)buffer[1])<<8) | (uint16_t)buffer[0];
-	hts221_readArray(buffer, 0x3A, 2);
-	H1_T0_out = (((uint16_t)buffer[1])<<8) | (uint16_t)buffer[0];
-	hts221_readArray(buffer, 0x28, 2);
+	hts221_readArray(Data, 0x36, 2);
+	H0_T0_out = (((uint16_t)Data[1])<<8) | (uint16_t)Data[0];
+	hts221_readArray(Data, 0x3A, 2);
+	H1_T0_out = (((uint16_t)Data[1])<<8) | (uint16_t)Data[0];
 
-	H_T_out = (((uint16_t)buffer[1])<<8) | (uint16_t)buffer[0];
+	hts221_readArray(Data, 0x28, 2);
+	H_T_out = (((uint16_t)Data[1])<<8) | (uint16_t)Data[0];
 
-	humid = ((((int32_t)(H_T_out - H0_T0_out)) * ((int32_t)(H1_rh - H0_rh)*10))/(H1_T0_out - H0_T0_out) + H0_rh*10);
+	humid = (((H1_rh) - (H0_rh)) * (H_T_out - H0_T0_out) / (H1_T0_out - H0_T0_out) + (H0_rh))/2.0;
 
-		if(humid>1000)
-		{
-			humid = 1000;
-		}
 
-	return (humid * 0.1);
+	return (humid);
 }
 
 float hts221_get_temp()
 {
-	uint8_t buffer[4], tmp_r;
-	float value;
-	int16_t T0_out, T1_out, T_out, T0_degC_x8_u16, T1_degC_x8_u16, T0_degC, T1_degC;
+	uint8_t Data[4], T1_T0msb;
+	float val;
+	int16_t T0_out, T1_out, T_out, T0_degC, T1_degC;
 
+	T1_T0msb = hts221_read_byte(0x35);
+	hts221_readArray(Data, 0x32, 2);
 
-	hts221_readArray(buffer, 0x32, 2);
+	T0_degC = (Data[0] + (1 << 8) * (T1_T0msb & 0x03)) / 8.0;
+	T1_degC = (Data[1] + (1 << 6) * (T1_T0msb & 0x0C)) / 8.0;
 
-	tmp_r = hts221_read_byte(0x35);
+	hts221_readArray(Data, 0x3C, 4);
+	T0_out = (((uint16_t)Data[1])<<8) | (uint16_t)Data[0];
+	T1_out = (((uint16_t)Data[3])<<8) | (uint16_t)Data[2];
 
-	T0_degC_x8_u16 = (((uint16_t)(tmp_r & 0x03)) << 8) | ((uint16_t)buffer[0]);
-	T1_degC_x8_u16 = (((uint16_t)(tmp_r & 0x0C)) << 6) | ((uint16_t)buffer[1]);
+	hts221_readArray(Data, 0x2A, 2);
+	T_out = (((uint16_t)Data[1])<<8) | (uint16_t)Data[0];
 
-	T0_degC = T0_degC_x8_u16>>3;
-	T1_degC = T1_degC_x8_u16>>3;
+	val = (float)(T0_degC + (int32_t)(T_out - T0_out) * (T1_degC - T0_degC) / (T1_out - T0_out));
 
-	hts221_readArray(buffer, 0x3C, 4);
-	T0_out = (((uint16_t)buffer[1])<<8) | (uint16_t)buffer[0];
-	T1_out = (((uint16_t)buffer[3])<<8) | (uint16_t)buffer[2];
-
-	hts221_readArray(buffer, 0x2A, 2);
-	T_out = (((uint16_t)buffer[1])<<8) | (uint16_t)buffer[0];
-
-	value = (float)((((int32_t)(T_out - T0_out)) * ((int32_t)(T1_degC - T0_degC)*10)) /(T1_out - T0_out) + T0_degC*10)*0.10000f;
-
-		return value;
+	return val;
 }
 
 uint8_t hts221_init(void)
@@ -94,8 +85,6 @@ uint8_t hts221_init(void)
 	{
 		status = 1;
 	}
-
-
 
 	uint8_t ctrl1 = 0b10000111;
 	hts221_write_byte(HTS221_ADDRESS_CTRL1, ctrl1);
